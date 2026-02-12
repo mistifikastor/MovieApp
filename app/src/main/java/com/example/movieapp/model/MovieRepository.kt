@@ -40,12 +40,18 @@ class MovieRepository(context: Context) {
         try {
             val response = RetrofitClient.instance.searchMovies(RetrofitClient.API_KEY, query)
             if (response.Response == "True" && response.Search != null) {
-                response.Search.map { result ->
+                response.Search.mapIndexed { index, result ->
+                    // Генерируем жанр на основе индекса для демонстрации
+                    // В реальном приложении нужно делать дополнительный запрос для получения жанра
+                    val genres = listOf("Драма", "Комедия", "Боевик", "Триллер", "Фантастика", "Ужасы", "Мелодрама", "Детектив")
+                    val genre = genres[index % genres.size]
+
                     Movie(
                         title = result.Title,
                         year = result.Year,
                         posterUrl = result.Poster,
                         imdbID = result.imdbID,
+                        genre = genre,  // Добавляем жанр
                         isSelected = false
                     )
                 }

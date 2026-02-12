@@ -5,18 +5,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,12 +31,20 @@ fun SearchScreen(
     val isLoading by controller.isLoading.collectAsState()
     val errorMessage by controller.errorMessage.collectAsState()
 
+    // Состояние для контекстного меню (правая кнопка мыши)
+    var showContextMenu by remember { mutableStateOf(false) }
+    var selectedMovie by remember { mutableStateOf<Movie?>(null) }
+
     // Очищаем результаты при выходе
     DisposableEffect(Unit) {
         onDispose {
             controller.clearSearchResults()
         }
     }
+
+    // Определяем, является ли устройство десктопом/планшетом с мышью
+    val configuration = LocalConfiguration.current
+    val isMouseDevice = configuration.screenWidthDp > 600 // Примерное определение
 
     Scaffold(
         topBar = {
@@ -66,7 +75,10 @@ fun SearchScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Введите название фильма") },
-                    singleLine = true
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Default.Search, contentDescription = null)
+                    }
                 )
 
                 Button(
@@ -83,7 +95,7 @@ fun SearchScreen(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Icon(Icons.Default.Search, contentDescription = "Поиск")
+                        Text("Найти")
                     }
                 }
             }
@@ -105,7 +117,11 @@ fun SearchScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Поиск фильмов...")
+                                Text(
+                                    text = "Поиск фильмов...",
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -118,7 +134,12 @@ fun SearchScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Text("🎬", fontSize = 64.sp)
+                            Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = errorMessage!!,
@@ -126,7 +147,11 @@ fun SearchScreen(
                                 color = MaterialTheme.colorScheme.error
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Попробуйте другой запрос")
+                            Text(
+                                text = "Попробуйте другой запрос",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -138,11 +163,24 @@ fun SearchScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Text("🔍", fontSize = 64.sp)
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text("Введите название фильма", fontSize = 20.sp)
+                            Text(
+                                text = "Введите название фильма",
+                                fontSize = 20.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("Например: Avatar, Inception, Titanic")
+                            Text(
+                                text = "Например: Avatar, Inception, Titanic",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -150,7 +188,7 @@ fun SearchScreen(
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             itemsIndexed(
                                 items = searchResults,
@@ -158,7 +196,13 @@ fun SearchScreen(
                             ) { index, movie ->
                                 SearchResultItem(
                                     movie = movie,
-                                    onSelect = {
+                                    onLongClick = {
+                                        // Длинное нажатие - аналог правой кнопки мыши
+                                        selectedMovie = movie
+                                        showContextMenu = true
+                                    },
+                                    onClick = {
+                                        // Обычный клик - просто выбираем фильм
                                         onMovieSelected(movie)
                                         onBack()
                                     }
@@ -170,70 +214,137 @@ fun SearchScreen(
             }
         }
     }
+
+    // Контекстное меню (аналог правой кнопки мыши)
+    if (showContextMenu && selectedMovie != null) {
+        AlertDialog(
+            onDismissRequest = { showContextMenu = false },
+            title = { Text(selectedMovie!!.title) },
+            text = {
+                Column {
+                    Text("Год: ${selectedMovie!!.year}")
+                    Text("Жанр: ${selectedMovie!!.genre ?: "Не указан"}")
+                    Text("IMDb ID: ${selectedMovie!!.imdbID}")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Выберите действие:")
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onMovieSelected(selectedMovie!!)
+                        showContextMenu = false
+                        onBack()
+                    }
+                ) {
+                    Text("Редактировать")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showContextMenu = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun SearchResultItem(
     movie: Movie,
-    onSelect: () -> Unit
+    onLongClick: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onSelect,
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                // Обработка правой кнопки мыши на десктопе
+                awaitPointerEventScope {
+                    awaitPointerEvent()
+                    // Здесь можно добавить обработку правой кнопки
+                }
+            },
+        onClick = onClick,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            // Мини-постер
-            Surface(
-                modifier = Modifier
-                    .size(60.dp, 80.dp)
-                    .padding(end = 16.dp),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                tonalElevation = 1.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("🎬", fontSize = 32.sp)
-                }
-            }
-
-            // Информация
-            Column(
-                modifier = Modifier.weight(1f)
+            // Заголовок и год
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = movie.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 2
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+
+                // Индикатор длинного нажатия
+                IconButton(onClick = onLongClick) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "Правая кнопка мыши",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Информация о фильме
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Год выпуска
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Default.Info,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = movie.year,
-                        fontSize = 12.sp,
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                // ЖАНР - добавляем жанр (пока заглушка, так как API OMDb не возвращает жанр в поиске)
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.padding(start = 8.dp)
+                ) {
+                    Text(
+                        text = movie.genre ?: "Драма", // Заглушка жанра
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            // Индикатор выбора
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // IMDb ID
             Text(
-                text = "Выбрать",
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp)
+                text = "IMDb: ${movie.imdbID}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         }
     }

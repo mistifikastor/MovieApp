@@ -11,4 +11,12 @@ interface MovieApi {
         @Query("s") searchQuery: String,
         @Query("type") type: String = "movie"
     ): MovieResponse
+
+    // Добавляем запрос для получения детальной информации о фильме
+    @GET("/")
+    suspend fun getMovieDetails(
+        @Query("apikey") apiKey: String,
+        @Query("i") imdbID: String,
+        @Query("plot") plot: String = "short"
+    ): MovieDetailsResponse
 }
