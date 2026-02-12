@@ -8,7 +8,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-    private const val BASE_URL = "http://www.omdbapi.com/"
+    private const val BASE_URL = "https://www.omdbapi.com/"
     const val API_KEY = "4f951815"
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {

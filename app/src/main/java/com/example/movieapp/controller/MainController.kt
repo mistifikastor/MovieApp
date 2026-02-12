@@ -26,6 +26,9 @@ class MainController(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    private val _selectedCount = MutableStateFlow(0)
+    val selectedCount: StateFlow<Int> = _selectedCount.asStateFlow()
+
     init {
         loadMoviesFromDb()
     }
@@ -34,6 +37,7 @@ class MainController(
         viewModelScope.launch {
             repository.allMovies.collect { moviesList ->
                 _movies.value = moviesList
+                _selectedCount.value = moviesList.count { it.isSelected }
             }
         }
     }
@@ -58,7 +62,7 @@ class MainController(
 
     fun addMovie(movie: Movie) {
         viewModelScope.launch {
-            repository.insertMovie(movie.copy(isSelected = false))
+            repository.insertMovie(movie)
             loadMoviesFromDb()
         }
     }
@@ -73,6 +77,13 @@ class MainController(
     fun deleteSelectedMovies() {
         viewModelScope.launch {
             repository.deleteSelectedMovies()
+            loadMoviesFromDb()
+        }
+    }
+
+    fun clearAllSelections() {
+        viewModelScope.launch {
+            repository.clearAllSelections()
             loadMoviesFromDb()
         }
     }

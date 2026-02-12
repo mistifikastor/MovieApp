@@ -12,7 +12,7 @@ class MovieRepository(context: Context) {
     val allMovies: Flow<List<Movie>> = movieDao.getAllMovies()
 
     suspend fun insertMovie(movie: Movie) {
-        movieDao.insertMovie(movie)
+        movieDao.insertMovie(movie.copy(isSelected = false))
     }
 
     suspend fun updateMovie(movie: Movie) {
@@ -25,6 +25,14 @@ class MovieRepository(context: Context) {
 
     suspend fun deleteSelectedMovies() {
         movieDao.deleteSelectedMovies()
+    }
+
+    suspend fun clearAllSelections() {
+        movieDao.clearAllSelections()
+    }
+
+    suspend fun getSelectedCount(): Int {
+        return movieDao.getSelectedCount()
     }
 
     suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.IO) {
@@ -44,6 +52,7 @@ class MovieRepository(context: Context) {
                 emptyList()
             }
         } catch (e: Exception) {
+            e.printStackTrace()
             emptyList()
         }
     }

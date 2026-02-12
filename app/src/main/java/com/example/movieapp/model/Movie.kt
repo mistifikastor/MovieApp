@@ -12,5 +12,5 @@ data class Movie(
     val year: String,
     val posterUrl: String,
     val imdbID: String,
-    var isSelected: Boolean = false
+    var isSelected: Boolean = false  // Флажок для выбора в списке
 )

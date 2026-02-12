@@ -6,11 +6,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.movieapp.controller.MainController
@@ -20,22 +22,27 @@ import com.example.movieapp.model.Movie
 @Composable
 fun AddScreen(
     controller: MainController,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onMovieAdded: () -> Unit = onBack
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchResults by controller.searchResults.collectAsState()
     val isLoading by controller.isLoading.collectAsState()
     val errorMessage by controller.errorMessage.collectAsState()
 
+    // Очищаем результаты поиска при выходе с экрана
+    DisposableEffect(Unit) {
+        onDispose {
+            controller.clearSearchResults()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Поиск фильмов") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        controller.clearSearchResults()
-                        onBack()
-                    }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
@@ -59,7 +66,11 @@ fun AddScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.weight(1f),
                     placeholder = { Text("Введите название фильма") },
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary
+                    )
                 )
 
                 Button(
@@ -68,11 +79,20 @@ fun AddScreen(
                             controller.searchMovies(searchQuery)
                         }
                     },
-                    enabled = searchQuery.isNotBlank()
+                    enabled = searchQuery.isNotBlank() && !isLoading
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = "Поиск")
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Icon(Icons.Default.Search, contentDescription = "Поиск")
+                    }
                 }
             }
+
+            HorizontalDivider()
 
             // Результаты поиска
             Box(
@@ -86,9 +106,20 @@ fun AddScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator()
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(48.dp),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "Поиск фильмов...",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
+
                     errorMessage != null -> {
                         Column(
                             modifier = Modifier
@@ -98,8 +129,8 @@ fun AddScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "❌",
-                                fontSize = 48.sp
+                                text = "🎬",
+                                fontSize = 64.sp
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
@@ -107,32 +138,57 @@ fun AddScreen(
                                 fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.error
                             )
-                        }
-                    }
-                    searchResults.isEmpty() && !isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Введите название для поиска фильмов",
-                                fontSize = 16.sp,
+                                text = "Попробуйте другой запрос",
+                                fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
+
+                    searchResults.isEmpty() && !isLoading -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "🔍",
+                                fontSize = 64.sp
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Введите название фильма",
+                                fontSize = 20.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Например: Avatar, Inception, Titanic",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     else -> {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(searchResults) { movie ->
+                            items(
+                                items = searchResults,
+                                key = { movie -> movie.imdbID }
+                            ) { movie ->
                                 SearchResultItem(
                                     movie = movie,
                                     onAddClick = {
                                         controller.addMovie(movie)
-                                        onBack()
+                                        onMovieAdded()
                                     }
                                 )
                             }
@@ -150,7 +206,14 @@ fun SearchResultItem(
     onAddClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp,
+            pressedElevation = 4.dp
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Row(
             modifier = Modifier
@@ -158,41 +221,83 @@ fun SearchResultItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            // Постер (заглушка)
+            Surface(
                 modifier = Modifier
                     .size(80.dp)
-                    .padding(end = 16.dp)
+                    .padding(end = 16.dp),
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 1.dp
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.secondaryContainer
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("🎬", fontSize = 32.sp)
-                    }
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "🎬",
+                        fontSize = 40.sp
+                    )
                 }
             }
 
+            // Информация о фильме
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
             ) {
                 Text(
                     text = movie.title,
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2
                 )
                 Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = movie.year,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = movie.year,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "IMDb: ${movie.imdbID}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
 
+            // Кнопка добавления
             Button(
                 onClick = onAddClick,
-                modifier = Modifier.padding(start = 8.dp)
+                modifier = Modifier.padding(start = 8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text("Добавить")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "+",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Добавить",
+                        fontSize = 12.sp
+                    )
+                }
             }
         }
     }
