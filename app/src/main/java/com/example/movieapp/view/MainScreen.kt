@@ -1,23 +1,27 @@
 // app/src/main/java/com/example/movieapp/view/MainScreen.kt
 package com.example.movieapp.view
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,8 +39,6 @@ fun MainScreen(
             TopAppBar(
                 title = { Text("Мои фильмы") },
                 actions = {
-                    // Кнопка удаления отображается всегда в основном меню
-                    // Но активна только когда есть выбранные элементы
                     IconButton(
                         onClick = {
                             if (selectedCount > 0) {
@@ -107,16 +109,16 @@ fun MainScreen(
                     )
                 }
             } else {
-                // Список фильмов
+                // Список фильмов с постерами
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         top = 16.dp,
                         end = 16.dp,
-                        bottom = 80.dp // Отступ для FAB
+                        bottom = 80.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(
                         items = movies,
@@ -175,7 +177,7 @@ fun MovieItem(
                 MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (movie.isSelected) 4.dp else 1.dp
+            defaultElevation = if (movie.isSelected) 4.dp else 2.dp
         )
     ) {
         Row(
@@ -194,23 +196,53 @@ fun MovieItem(
                 )
             )
 
-            // Постер (заглушка)
+            // НАСТОЯЩИЙ ПОСТЕР - загружаем из URL
             Box(
                 modifier = Modifier
-                    .size(70.dp)
+                    .size(70.dp, 100.dp)  // Чуть больше размер для постера
                     .padding(end = 12.dp)
+                    .clip(MaterialTheme.shapes.small)
             ) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    tonalElevation = 2.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "🎬",
-                            fontSize = 32.sp
-                        )
+                if (movie.posterUrl.isNotBlank() && movie.posterUrl != "N/A") {
+                    // Загружаем реальный постер
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(movie.posterUrl)
+                                .crossfade(true)
+                                .scale(Scale.FILL)
+                                .build()
+                        ),
+                        contentDescription = "Постер ${movie.title}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Заглушка если нет постера
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        tonalElevation = 2.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "🎬",
+                                    fontSize = 24.sp
+                                )
+                                Text(
+                                    text = "Нет",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = "постера",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -224,24 +256,57 @@ fun MovieItem(
                 Text(
                     text = movie.title,
                     fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2
                 )
+
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = movie.year,
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                // Год выпуска
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = movie.year,
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Жанр
+                if (movie.genre != null) {
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Text(
+                            text = movie.genre!!,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
 
-            // Индикатор выбора (дополнительная визуализация)
+            // Индикатор выбора
             if (movie.isSelected) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Выбран",
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
