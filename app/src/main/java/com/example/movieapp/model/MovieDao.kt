@@ -1,0 +1,23 @@
+// app/src/main/java/com/example/movieapp/model/MovieDao.kt
+package com.example.movieapp.model
+
+import androidx.room.*
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface MovieDao {
+    @Query("SELECT * FROM movies")
+    fun getAllMovies(): Flow<List<Movie>>
+
+    @Insert
+    suspend fun insertMovie(movie: Movie)
+
+    @Update
+    suspend fun updateMovie(movie: Movie)
+
+    @Delete
+    suspend fun deleteMovie(movie: Movie)
+
+    @Query("DELETE FROM movies WHERE isSelected = 1")
+    suspend fun deleteSelectedMovies()
+}
