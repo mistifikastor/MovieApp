@@ -17,6 +17,7 @@ class MainController(
     private val _movies = MutableStateFlow<List<Movie>>(emptyList())
     val movies: StateFlow<List<Movie>> = _movies.asStateFlow()
 
+    // Меняем тип на List<Movie>
     private val _searchResults = MutableStateFlow<List<Movie>>(emptyList())
     val searchResults: StateFlow<List<Movie>> = _searchResults.asStateFlow()
 

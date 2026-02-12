@@ -35,6 +35,7 @@ class MovieRepository(context: Context) {
         return movieDao.getSelectedCount()
     }
 
+    // Возвращаем List<Movie> как и было
     suspend fun searchMovies(query: String): List<Movie> = withContext(Dispatchers.IO) {
         try {
             val response = RetrofitClient.instance.searchMovies(RetrofitClient.API_KEY, query)
