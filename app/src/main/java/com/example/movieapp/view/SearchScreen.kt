@@ -192,8 +192,9 @@ fun SearchScreen(
                                         showContextMenu = true
                                     },
                                     onClick = {
+                                        // Просто выбираем фильм и переходим к редактированию
                                         onMovieSelected(movie)
-                                        onBack()
+                                        // onBack() - УБИРАЕМ, так как onMovieSelected уже меняет экран на ADD
                                     }
                                 )
                             }
@@ -223,7 +224,7 @@ fun SearchScreen(
                     onClick = {
                         onMovieSelected(selectedMovie!!)
                         showContextMenu = false
-                        onBack()
+                        // Не вызываем onBack() - onMovieSelected сам переключит экран
                     }
                 ) {
                     Text("Редактировать")
@@ -274,7 +275,7 @@ fun SearchResultItem(
                 IconButton(onClick = onLongClick) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = "Правая кнопка мыши",
+                        contentDescription = "Детали",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }

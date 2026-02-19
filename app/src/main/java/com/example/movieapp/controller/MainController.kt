@@ -101,14 +101,15 @@ class MainController(
         view.navigateToSearch()
     }
 
-    fun onMovieSelectedForEdit(movie: Movie) {
-        view.navigateToAdd(movie)
-    }
-
+    // В MainController.kt, метод onBackClicked должен учитывать контекст
     fun onBackClicked() {
         view.navigateBack()
     }
 
+    // onMovieSelectedForEdit просто делегирует view
+    fun onMovieSelectedForEdit(movie: Movie) {
+        view.navigateToAdd(movie)
+    }
     // Важно! Не забываем очищать корутины
     fun onDestroy() {
         coroutineScope.cancel()

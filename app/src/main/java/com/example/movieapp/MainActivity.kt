@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
 import com.example.movieapp.model.MovieRepository
@@ -17,7 +16,7 @@ import com.example.movieapp.view.SearchScreen
 
 class MainActivity : ComponentActivity(), MovieView {
 
-    // Состояние для UI (будет обновляться контроллером)
+    // Состояние для UI
     private var movies by mutableStateOf(emptyList<Movie>())
     private var searchResults by mutableStateOf(emptyList<Movie>())
     private var isLoading by mutableStateOf(false)
@@ -40,7 +39,7 @@ class MainActivity : ComponentActivity(), MovieView {
 
         setContent {
             MaterialTheme {
-                // Просто отображаем текущий экран с текущим состоянием
+                // Отображаем текущий экран
                 when (currentScreen) {
                     Screen.MAIN -> MainScreen(
                         movies = movies,
@@ -53,7 +52,13 @@ class MainActivity : ComponentActivity(), MovieView {
                     Screen.ADD -> AddScreen(
                         onBack = { controller.onBackClicked() },
                         onOpenSearch = { controller.onSearchClicked() },
-                        onAddMovie = { controller.addMovie(it) },
+                        onAddMovie = { movie ->
+                            // При добавлении фильма вызываем метод контроллера
+                            controller.addMovie(movie)
+                            // После добавления возвращаемся на главный экран
+                            currentScreen = Screen.MAIN
+                            selectedMovieForEdit = null
+                        },
                         selectedMovie = selectedMovieForEdit
                     )
 
@@ -61,10 +66,12 @@ class MainActivity : ComponentActivity(), MovieView {
                         searchResults = searchResults,
                         isLoading = isLoading,
                         errorMessage = errorMessage,
-                        onSearch = { controller.searchMovies(it) },
+                        onSearch = { query -> controller.searchMovies(query) },
                         onBack = { controller.onBackClicked() },
                         onMovieSelected = { movie ->
-                            controller.onMovieSelectedForEdit(movie)
+                            // При выборе фильма из поиска сохраняем его для редактирования
+                            selectedMovieForEdit = movie
+                            currentScreen = Screen.ADD
                         },
                         onClearResults = { controller.clearSearchResults() }
                     )
@@ -113,8 +120,18 @@ class MainActivity : ComponentActivity(), MovieView {
 
     override fun navigateBack() {
         when (currentScreen) {
-            Screen.SEARCH -> currentScreen = Screen.ADD
-            else -> currentScreen = Screen.MAIN
+            Screen.SEARCH -> {
+                currentScreen = Screen.ADD
+                // Не сбрасываем selectedMovieForEdit, чтобы вернуться к редактированию
+            }
+            Screen.ADD -> {
+                currentScreen = Screen.MAIN
+                selectedMovieForEdit = null
+            }
+            else -> {
+                currentScreen = Screen.MAIN
+                selectedMovieForEdit = null
+            }
         }
     }
 }
