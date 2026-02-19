@@ -1,96 +1,116 @@
 // app/src/main/java/com/example/movieapp/controller/MainController.kt
 package com.example.movieapp.controller
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewModelScope // Убрать!
+import kotlinx.coroutines.*
 import com.example.movieapp.model.Movie
 import com.example.movieapp.model.MovieRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.example.movieapp.view.MovieView
 
 class MainController(
-    private val repository: MovieRepository
-) : ViewModel() {
+    private val repository: MovieRepository,
+    private val view: MovieView  // Ссылка на View
+) {
+    // Состояние хранится в Controller, но обновляется через View
+    private var movies: List<Movie> = emptyList()
+    private var searchResults: List<Movie> = emptyList()
+    private var isLoading = false
+    private var errorMessage: String? = null
+    private var selectedCount = 0
 
-    private val _movies = MutableStateFlow<List<Movie>>(emptyList())
-    val movies: StateFlow<List<Movie>> = _movies.asStateFlow()
-
-    // Меняем тип на List<Movie>
-    private val _searchResults = MutableStateFlow<List<Movie>>(emptyList())
-    val searchResults: StateFlow<List<Movie>> = _searchResults.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val _selectedCount = MutableStateFlow(0)
-    val selectedCount: StateFlow<Int> = _selectedCount.asStateFlow()
-
-    init {
-        loadMoviesFromDb()
-    }
+    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
 
     fun loadMoviesFromDb() {
-        viewModelScope.launch {
+        coroutineScope.launch {
             repository.allMovies.collect { moviesList ->
-                _movies.value = moviesList
-                _selectedCount.value = moviesList.count { it.isSelected }
+                this@MainController.movies = moviesList
+                selectedCount = moviesList.count { it.isSelected }
+
+                // Обновляем View
+                view.showMovies(moviesList)
+                view.updateSelectedCount(selectedCount)
             }
         }
     }
 
     fun searchMovies(query: String) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
+        coroutineScope.launch {
+            isLoading = true
+            errorMessage = null
+            view.showLoading(true)
+
             try {
                 val results = repository.searchMovies(query)
-                _searchResults.value = results
+                searchResults = results
+                view.showSearchResults(results)
+
                 if (results.isEmpty()) {
-                    _errorMessage.value = "Фильмы не найдены"
+                    errorMessage = "Фильмы не найдены"
+                    view.showError(errorMessage)
                 }
             } catch (e: Exception) {
-                _errorMessage.value = "Ошибка: ${e.message}"
+                errorMessage = "Ошибка: ${e.message}"
+                view.showError(errorMessage)
             } finally {
-                _isLoading.value = false
+                isLoading = false
+                view.showLoading(false)
             }
         }
     }
 
     fun addMovie(movie: Movie) {
-        viewModelScope.launch {
+        coroutineScope.launch {
             repository.insertMovie(movie)
             loadMoviesFromDb()
         }
     }
 
     fun toggleMovieSelection(movie: Movie) {
-        viewModelScope.launch {
+        coroutineScope.launch {
             repository.updateMovie(movie.copy(isSelected = !movie.isSelected))
             loadMoviesFromDb()
         }
     }
 
     fun deleteSelectedMovies() {
-        viewModelScope.launch {
+        coroutineScope.launch {
             repository.deleteSelectedMovies()
             loadMoviesFromDb()
         }
     }
 
     fun clearAllSelections() {
-        viewModelScope.launch {
+        coroutineScope.launch {
             repository.clearAllSelections()
             loadMoviesFromDb()
         }
     }
 
     fun clearSearchResults() {
-        _searchResults.value = emptyList()
-        _errorMessage.value = null
+        searchResults = emptyList()
+        errorMessage = null
+        view.showSearchResults(emptyList())
+        view.showError(null)
+    }
+
+    fun onAddClicked() {
+        view.navigateToAdd(null)
+    }
+
+    fun onSearchClicked() {
+        view.navigateToSearch()
+    }
+
+    fun onMovieSelectedForEdit(movie: Movie) {
+        view.navigateToAdd(movie)
+    }
+
+    fun onBackClicked() {
+        view.navigateBack()
+    }
+
+    // Важно! Не забываем очищать корутины
+    fun onDestroy() {
+        coroutineScope.cancel()
     }
 }
