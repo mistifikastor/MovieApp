@@ -20,16 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Scale
-import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddScreen(
-    controller: MainController,
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
-    selectedMovie: Movie? = null
+    onAddMovie: (Movie) -> Unit,
+    selectedMovie: Movie?
 ) {
     var title by remember(selectedMovie) { mutableStateOf(selectedMovie?.title ?: "") }
     var year by remember(selectedMovie) { mutableStateOf(selectedMovie?.year ?: "") }
@@ -47,7 +46,6 @@ fun AddScreen(
                     }
                 },
                 actions = {
-                    // Кнопка поиска для открытия SearchScreen
                     IconButton(onClick = onOpenSearch) {
                         Icon(Icons.Default.Search, contentDescription = "Поиск фильмов")
                     }
@@ -71,7 +69,6 @@ fun AddScreen(
                 shape = RoundedCornerShape(8.dp)
             ) {
                 if (posterUrl.isNotBlank() && posterUrl != "N/A") {
-                    // Загружаем реальный постер
                     Image(
                         painter = rememberAsyncImagePainter(
                             ImageRequest.Builder(LocalContext.current)
@@ -85,7 +82,6 @@ fun AddScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Заглушка если нет постера
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -108,7 +104,7 @@ fun AddScreen(
                 }
             }
 
-            // Поле для названия фильма (обязательное)
+            // Поле для названия фильма
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
@@ -126,7 +122,7 @@ fun AddScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Поле для года выпуска (необязательное)
+            // Поле для года выпуска
             OutlinedTextField(
                 value = year,
                 onValueChange = { year = it },
@@ -153,7 +149,7 @@ fun AddScreen(
                             imdbID = "",
                             isSelected = false
                         )
-                        controller.addMovie(movieToAdd)
+                        onAddMovie(movieToAdd)
                         onBack()
                     }
                 },

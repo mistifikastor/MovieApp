@@ -20,18 +20,17 @@ import androidx.compose.ui.text.font.FontWeight
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Scale
-import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    controller: MainController,
-    onAddClick: () -> Unit
+    movies: List<Movie>,
+    selectedCount: Int,
+    onAddClick: () -> Unit,
+    onMovieToggle: (Movie) -> Unit,
+    onDeleteSelected: () -> Unit
 ) {
-    val movies by controller.movies.collectAsState()
-    val selectedCount by controller.selectedCount.collectAsState()
-
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -126,9 +125,7 @@ fun MainScreen(
                     ) { movie ->
                         MovieItem(
                             movie = movie,
-                            onSelectionChange = { isSelected ->
-                                controller.toggleMovieSelection(movie)
-                            }
+                            onSelectionChange = { onMovieToggle(movie) }
                         )
                     }
                 }
@@ -147,7 +144,7 @@ fun MainScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        controller.deleteSelectedMovies()
+                        onDeleteSelected()
                         showDeleteConfirmation = false
                     }
                 ) {
@@ -166,7 +163,7 @@ fun MainScreen(
 @Composable
 fun MovieItem(
     movie: Movie,
-    onSelectionChange: (Boolean) -> Unit
+    onSelectionChange: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -189,22 +186,21 @@ fun MovieItem(
             // Checkbox (галочка) для выбора фильма
             Checkbox(
                 checked = movie.isSelected,
-                onCheckedChange = onSelectionChange,
+                onCheckedChange = { onSelectionChange() },
                 modifier = Modifier.padding(end = 8.dp),
                 colors = CheckboxDefaults.colors(
                     checkedColor = MaterialTheme.colorScheme.primary
                 )
             )
 
-            // НАСТОЯЩИЙ ПОСТЕР - загружаем из URL
+            // Постер фильма
             Box(
                 modifier = Modifier
-                    .size(70.dp, 100.dp)  // Чуть больше размер для постера
+                    .size(70.dp, 100.dp)
                     .padding(end = 12.dp)
                     .clip(MaterialTheme.shapes.small)
             ) {
                 if (movie.posterUrl.isNotBlank() && movie.posterUrl != "N/A") {
-                    // Загружаем реальный постер
                     Image(
                         painter = rememberAsyncImagePainter(
                             ImageRequest.Builder(LocalContext.current)
@@ -218,7 +214,6 @@ fun MovieItem(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Заглушка если нет постера
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         shape = MaterialTheme.shapes.small,
