@@ -10,41 +10,32 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
-import com.example.movieapp.controller.MainController
 import com.example.movieapp.model.Movie
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    controller: MainController,
+    searchResults: List<Movie>,
+    isLoading: Boolean,
+    errorMessage: String?,
+    onSearch: (String) -> Unit,
     onBack: () -> Unit,
-    onMovieSelected: (Movie) -> Unit
+    onMovieSelected: (Movie) -> Unit,
+    onClearResults: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val searchResults by controller.searchResults.collectAsState()
-    val isLoading by controller.isLoading.collectAsState()
-    val errorMessage by controller.errorMessage.collectAsState()
-
-    // Состояние для контекстного меню (правая кнопка мыши)
     var showContextMenu by remember { mutableStateOf(false) }
     var selectedMovie by remember { mutableStateOf<Movie?>(null) }
 
     // Очищаем результаты при выходе
     DisposableEffect(Unit) {
         onDispose {
-            controller.clearSearchResults()
+            onClearResults()
         }
     }
-
-    // Определяем, является ли устройство десктопом/планшетом с мышью
-    val configuration = LocalConfiguration.current
-    val isMouseDevice = configuration.screenWidthDp > 600 // Примерное определение
 
     Scaffold(
         topBar = {
@@ -84,7 +75,7 @@ fun SearchScreen(
                 Button(
                     onClick = {
                         if (searchQuery.isNotBlank()) {
-                            controller.searchMovies(searchQuery)
+                            onSearch(searchQuery)
                         }
                     },
                     enabled = searchQuery.isNotBlank() && !isLoading
@@ -142,7 +133,7 @@ fun SearchScreen(
                             )
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = errorMessage!!,
+                                text = errorMessage,
                                 fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -197,12 +188,10 @@ fun SearchScreen(
                                 SearchResultItem(
                                     movie = movie,
                                     onLongClick = {
-                                        // Длинное нажатие - аналог правой кнопки мыши
                                         selectedMovie = movie
                                         showContextMenu = true
                                     },
                                     onClick = {
-                                        // Обычный клик - просто выбираем фильм
                                         onMovieSelected(movie)
                                         onBack()
                                     }
@@ -215,7 +204,7 @@ fun SearchScreen(
         }
     }
 
-    // Контекстное меню (аналог правой кнопки мыши)
+    // Контекстное меню
     if (showContextMenu && selectedMovie != null) {
         AlertDialog(
             onDismissRequest = { showContextMenu = false },
@@ -256,15 +245,7 @@ fun SearchResultItem(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .pointerInput(Unit) {
-                // Обработка правой кнопки мыши на десктопе
-                awaitPointerEventScope {
-                    awaitPointerEvent()
-                    // Здесь можно добавить обработку правой кнопки
-                }
-            },
+        modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
@@ -290,7 +271,6 @@ fun SearchResultItem(
                     modifier = Modifier.weight(1f)
                 )
 
-                // Индикатор длинного нажатия
                 IconButton(onClick = onLongClick) {
                     Icon(
                         Icons.Default.MoreVert,
@@ -323,14 +303,14 @@ fun SearchResultItem(
                     )
                 }
 
-                // ЖАНР - добавляем жанр (пока заглушка, так как API OMDb не возвращает жанр в поиске)
+                // Жанр
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.padding(start = 8.dp)
                 ) {
                     Text(
-                        text = movie.genre ?: "Драма", // Заглушка жанра
+                        text = movie.genre ?: "Драма",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
