@@ -21,18 +21,15 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.movieapp.model.Movie
+import com.example.movieapp.ui.main.MainIntent
+import com.example.movieapp.ui.main.MainState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    movies: List<Movie>,
-    selectedCount: Int,
-    onAddClick: () -> Unit,
-    onMovieToggle: (Movie) -> Unit,
-    onDeleteSelected: () -> Unit
+    state: MainState,
+    onIntent: (MainIntent) -> Unit
 ) {
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -40,19 +37,19 @@ fun MainScreen(
                 actions = {
                     IconButton(
                         onClick = {
-                            if (selectedCount > 0) {
-                                showDeleteConfirmation = true
+                            if (state.selectedCount > 0) {
+                                onIntent(MainIntent.ShowDeleteDialog)
                             }
                         },
-                        enabled = selectedCount > 0
+                        enabled = state.selectedCount > 0
                     ) {
                         BadgedBox(
                             badge = {
-                                if (selectedCount > 0) {
+                                if (state.selectedCount > 0) {
                                     Badge(
                                         containerColor = MaterialTheme.colorScheme.error
                                     ) {
-                                        Text(selectedCount.toString())
+                                        Text(state.selectedCount.toString())
                                     }
                                 }
                             }
@@ -60,7 +57,7 @@ fun MainScreen(
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Удалить выбранные",
-                                tint = if (selectedCount > 0)
+                                tint = if (state.selectedCount > 0)
                                     MaterialTheme.colorScheme.error
                                 else
                                     MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
@@ -71,7 +68,9 @@ fun MainScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
+            FloatingActionButton(
+                onClick = { onIntent(MainIntent.NavigateToAdd) }
+            ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить фильм")
             }
         }
@@ -81,82 +80,83 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            if (movies.isEmpty()) {
+            if (state.movies.isEmpty()) {
                 // Пустое состояние
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "🎬",
-                        fontSize = 80.sp
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "У вас нет выбранных фильмов",
-                        fontSize = 20.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Нажмите кнопку + чтобы добавить фильмы",
-                        fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                EmptyMoviesContent()
             } else {
-                // Список фильмов с постерами
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        top = 16.dp,
-                        end = 16.dp,
-                        bottom = 80.dp
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(
-                        items = movies,
-                        key = { movie -> movie.id }
-                    ) { movie ->
-                        MovieItem(
-                            movie = movie,
-                            onSelectionChange = { onMovieToggle(movie) }
-                        )
+                // Список фильмов
+                MoviesList(
+                    movies = state.movies,
+                    onMovieToggle = { movie ->
+                        onIntent(MainIntent.ToggleMovieSelection(movie))
                     }
-                }
+                )
             }
         }
     }
 
     // Диалог подтверждения удаления
-    if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Подтверждение удаления") },
-            text = {
-                Text("Вы действительно хотите удалить $selectedCount выбранных фильмов?")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onDeleteSelected()
-                        showDeleteConfirmation = false
-                    }
-                ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Отмена")
-                }
-            }
+    if (state.isDeleteDialogVisible) {
+        DeleteConfirmationDialog(
+            selectedCount = state.selectedCount,
+            onConfirm = { onIntent(MainIntent.ConfirmDelete) },
+            onDismiss = { onIntent(MainIntent.DismissDeleteDialog) }
         )
+    }
+}
+
+@Composable
+fun EmptyMoviesContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = "🎬",
+            fontSize = 80.sp
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "У вас нет выбранных фильмов",
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Нажмите кнопку + чтобы добавить фильмы",
+            fontSize = 16.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun MoviesList(
+    movies: List<Movie>,
+    onMovieToggle: (Movie) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = 16.dp,
+            end = 16.dp,
+            bottom = 80.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(
+            items = movies,
+            key = { movie -> movie.id }
+        ) { movie ->
+            MovieItem(
+                movie = movie,
+                onSelectionChange = { onMovieToggle(movie) }
+            )
+        }
     }
 }
 
@@ -183,7 +183,7 @@ fun MovieItem(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Checkbox (галочка) для выбора фильма
+            // Checkbox для выбора фильма
             Checkbox(
                 checked = movie.isSelected,
                 onCheckedChange = { onSelectionChange() },
@@ -194,106 +194,10 @@ fun MovieItem(
             )
 
             // Постер фильма
-            Box(
-                modifier = Modifier
-                    .size(70.dp, 100.dp)
-                    .padding(end = 12.dp)
-                    .clip(MaterialTheme.shapes.small)
-            ) {
-                if (movie.posterUrl.isNotBlank() && movie.posterUrl != "N/A") {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(movie.posterUrl)
-                                .crossfade(true)
-                                .scale(Scale.FILL)
-                                .build()
-                        ),
-                        contentDescription = "Постер ${movie.title}",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        tonalElevation = 2.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "🎬",
-                                    fontSize = 24.sp
-                                )
-                                Text(
-                                    text = "Нет",
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Text(
-                                    text = "постера",
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            MoviePoster(posterUrl = movie.posterUrl, title = movie.title)
 
             // Информация о фильме
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 8.dp)
-            ) {
-                Text(
-                    text = movie.title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Год выпуска
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Info,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = movie.year,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Жанр
-                if (movie.genre != null) {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.padding(top = 2.dp)
-                    ) {
-                        Text(
-                            text = movie.genre!!,
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
+            MovieInfo(movie = movie)
 
             // Индикатор выбора
             if (movie.isSelected) {
@@ -306,4 +210,137 @@ fun MovieItem(
             }
         }
     }
+}
+
+@Composable
+fun MoviePoster(posterUrl: String, title: String) {
+    Box(
+        modifier = Modifier
+            .size(70.dp, 100.dp)
+            .padding(end = 12.dp)
+            .clip(MaterialTheme.shapes.small)
+    ) {
+        if (posterUrl.isNotBlank() && posterUrl != "N/A") {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(posterUrl)
+                        .crossfade(true)
+                        .scale(Scale.FILL)
+                        .build()
+                ),
+                contentDescription = "Постер $title",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                tonalElevation = 2.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "🎬",
+                            fontSize = 24.sp
+                        )
+                        Text(
+                            text = "Нет",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "постера",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MovieInfo(movie: Movie) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .padding(end = 8.dp)
+    ) {
+        Text(
+            text = movie.title,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Год выпуска
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Info,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = movie.year,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Жанр
+        if (movie.genre != null) {
+            Surface(
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                modifier = Modifier.padding(top = 2.dp)
+            ) {
+                Text(
+                    text = movie.genre!!,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteConfirmationDialog(
+    selectedCount: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Подтверждение удаления") },
+        text = {
+            Text("Вы действительно хотите удалить $selectedCount выбранных фильмов?")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm
+            ) {
+                Text("Удалить", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
 }

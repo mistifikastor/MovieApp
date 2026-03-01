@@ -21,15 +21,18 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.movieapp.model.Movie
+import com.example.movieapp.ui.main.MainIntent
+import com.example.movieapp.ui.main.MainState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddScreen(
-    onBack: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onAddMovie: (Movie) -> Unit,
-    selectedMovie: Movie?
+    state: MainState,
+    onIntent: (MainIntent) -> Unit
 ) {
+    val selectedMovie = state.selectedMovieForEdit
+
+    // Локальное состояние для полей ввода
     var title by remember(selectedMovie) { mutableStateOf(selectedMovie?.title ?: "") }
     var year by remember(selectedMovie) { mutableStateOf(selectedMovie?.year ?: "") }
     var posterUrl by remember(selectedMovie) { mutableStateOf(selectedMovie?.posterUrl ?: "") }
@@ -39,14 +42,21 @@ fun AddScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (selectedMovie == null) "Добавить фильм" else "Редактировать фильм") },
+                title = {
+                    Text(
+                        if (selectedMovie == null)
+                            "Добавить фильм"
+                        else
+                            "Редактировать фильм"
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { onIntent(MainIntent.NavigateBack) }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
-                    IconButton(onClick = onOpenSearch) {
+                    IconButton(onClick = { onIntent(MainIntent.NavigateToSearch) }) {
                         Icon(Icons.Default.Search, contentDescription = "Поиск фильмов")
                     }
                 }
@@ -61,48 +71,12 @@ fun AddScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Постер фильма
-            Card(
-                modifier = Modifier
-                    .size(200.dp, 250.dp)
-                    .padding(bottom = 24.dp),
-                elevation = CardDefaults.cardElevation(4.dp),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                if (posterUrl.isNotBlank() && posterUrl != "N/A") {
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            ImageRequest.Builder(LocalContext.current)
-                                .data(posterUrl)
-                                .crossfade(true)
-                                .scale(Scale.FILL)
-                                .build()
-                        ),
-                        contentDescription = "Постер фильма",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "🎬",
-                                fontSize = 64.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Нет постера",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-            }
+            MoviePosterLarge(
+                posterUrl = posterUrl,
+                title = title
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Поле для названия фильма
             OutlinedTextField(
@@ -115,7 +89,10 @@ fun AddScreen(
                 isError = title.isBlank(),
                 supportingText = {
                     if (title.isBlank()) {
-                        Text("Обязательное поле", color = MaterialTheme.colorScheme.error)
+                        Text(
+                            "Обязательное поле",
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             )
@@ -135,47 +112,128 @@ fun AddScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // Кнопка добавления
-            Button(
+            AddButton(
+                isFormValid = isFormValid,
+                isEdit = selectedMovie != null,
                 onClick = {
                     if (isFormValid) {
-                        val movieToAdd = selectedMovie?.copy(
+                        val movieToAdd = createMovie(
+                            selectedMovie = selectedMovie,
                             title = title,
                             year = year,
                             posterUrl = posterUrl
-                        ) ?: Movie(
-                            title = title,
-                            year = year,
-                            posterUrl = posterUrl,
-                            imdbID = "",
-                            isSelected = false
                         )
-                        onAddMovie(movieToAdd)
-                        onBack()
+                        onIntent(MainIntent.AddMovie(movieToAdd))
                     }
-                },
-                enabled = isFormValid,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-            ) {
-                Text(
-                    text = if (selectedMovie == null) "ДОБАВИТЬ ФИЛЬМ" else "СОХРАНИТЬ",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                }
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Подсказка
+            // Подсказка для нового фильма
             if (selectedMovie == null) {
-                Text(
-                    text = "Или нажмите на иконку поиска 🔍 чтобы найти фильм",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 16.dp)
-                )
+                SearchHint()
             }
         }
     }
+}
+
+@Composable
+fun MoviePosterLarge(
+    posterUrl: String,
+    title: String
+) {
+    Card(
+        modifier = Modifier
+            .size(200.dp, 250.dp)
+            .padding(bottom = 24.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        if (posterUrl.isNotBlank() && posterUrl != "N/A") {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    ImageRequest.Builder(LocalContext.current)
+                        .data(posterUrl)
+                        .crossfade(true)
+                        .scale(Scale.FILL)
+                        .build()
+                ),
+                contentDescription = "Постер фильма",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "🎬",
+                        fontSize = 64.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Нет постера",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AddButton(
+    isFormValid: Boolean,
+    isEdit: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = isFormValid,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+    ) {
+        Text(
+            text = if (isEdit) "СОХРАНИТЬ" else "ДОБАВИТЬ ФИЛЬМ",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+fun SearchHint() {
+    Text(
+        text = "Или нажмите на иконку поиска 🔍 чтобы найти фильм",
+        fontSize = 12.sp,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 16.dp)
+    )
+}
+
+// Вспомогательная функция для создания фильма
+private fun createMovie(
+    selectedMovie: Movie?,
+    title: String,
+    year: String,
+    posterUrl: String
+): Movie {
+    return selectedMovie?.copy(
+        title = title,
+        year = year,
+        posterUrl = posterUrl
+    ) ?: Movie(
+        title = title,
+        year = year,
+        posterUrl = posterUrl,
+        imdbID = "",
+        isSelected = false
+    )
 }

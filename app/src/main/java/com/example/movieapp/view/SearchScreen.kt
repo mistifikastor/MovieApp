@@ -3,7 +3,7 @@ package com.example.movieapp.view
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -14,17 +14,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import com.example.movieapp.model.Movie
+import com.example.movieapp.ui.main.MainIntent
+import com.example.movieapp.ui.main.MainState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    searchResults: List<Movie>,
-    isLoading: Boolean,
-    errorMessage: String?,
-    onSearch: (String) -> Unit,
-    onBack: () -> Unit,
-    onMovieSelected: (Movie) -> Unit,
-    onClearResults: () -> Unit
+    state: MainState,
+    onIntent: (MainIntent) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showContextMenu by remember { mutableStateOf(false) }
@@ -33,7 +30,7 @@ fun SearchScreen(
     // Очищаем результаты при выходе
     DisposableEffect(Unit) {
         onDispose {
-            onClearResults()
+            onIntent(MainIntent.ClearSearchResults)
         }
     }
 
@@ -42,7 +39,7 @@ fun SearchScreen(
             TopAppBar(
                 title = { Text("Поиск фильмов") },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { onIntent(MainIntent.NavigateBack) }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
@@ -55,195 +52,230 @@ fun SearchScreen(
                 .padding(paddingValues)
         ) {
             // Поисковая строка
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Введите название фильма") },
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null)
+            SearchBar(
+                searchQuery = searchQuery,
+                onQueryChange = { searchQuery = it },
+                onSearch = {
+                    if (searchQuery.isNotBlank()) {
+                        onIntent(MainIntent.SearchMovies(searchQuery))
                     }
-                )
-
-                Button(
-                    onClick = {
-                        if (searchQuery.isNotBlank()) {
-                            onSearch(searchQuery)
-                        }
-                    },
-                    enabled = searchQuery.isNotBlank() && !isLoading
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                    } else {
-                        Text("Найти")
-                    }
-                }
-            }
+                },
+                isLoading = state.isLoading
+            )
 
             HorizontalDivider()
 
             // Результаты поиска
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f)
-            ) {
-                when {
-                    isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "Поиск фильмов...",
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    errorMessage != null -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = errorMessage,
-                                fontSize = 18.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Попробуйте другой запрос",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    searchResults.isEmpty() && !isLoading -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Введите название фильма",
-                                fontSize = 20.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Например: Avatar, Inception, Titanic",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            itemsIndexed(
-                                items = searchResults,
-                                key = { index, movie -> "${movie.imdbID}_$index" }
-                            ) { index, movie ->
-                                SearchResultItem(
-                                    movie = movie,
-                                    onLongClick = {
-                                        selectedMovie = movie
-                                        showContextMenu = true
-                                    },
-                                    onClick = {
-                                        // Просто выбираем фильм и переходим к редактированию
-                                        onMovieSelected(movie)
-                                        // onBack() - УБИРАЕМ, так как onMovieSelected уже меняет экран на ADD
-                                    }
-                                )
-                            }
-                        }
-                    }
+            SearchResultsContent(
+                state = state,
+                onMovieClick = { movie ->
+                    onIntent(MainIntent.NavigateToEdit(movie))
+                },
+                onMovieLongClick = { movie ->
+                    selectedMovie = movie
+                    showContextMenu = true
                 }
-            }
+            )
         }
     }
 
     // Контекстное меню
     if (showContextMenu && selectedMovie != null) {
-        AlertDialog(
-            onDismissRequest = { showContextMenu = false },
-            title = { Text(selectedMovie!!.title) },
-            text = {
-                Column {
-                    Text("Год: ${selectedMovie!!.year}")
-                    Text("Жанр: ${selectedMovie!!.genre ?: "Не указан"}")
-                    Text("IMDb ID: ${selectedMovie!!.imdbID}")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Выберите действие:")
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onMovieSelected(selectedMovie!!)
-                        showContextMenu = false
-                        // Не вызываем onBack() - onMovieSelected сам переключит экран
-                    }
-                ) {
-                    Text("Редактировать")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showContextMenu = false }) {
-                    Text("Отмена")
-                }
+        MovieContextMenu(
+            movie = selectedMovie!!,
+            onDismiss = { showContextMenu = false },
+            onEdit = {
+                onIntent(MainIntent.NavigateToEdit(selectedMovie!!))
+                showContextMenu = false
             }
         )
     }
 }
 
 @Composable
+fun SearchBar(
+    searchQuery: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    isLoading: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Введите название фильма") },
+            singleLine = true,
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null)
+            }
+        )
+
+        Button(
+            onClick = onSearch,
+            enabled = searchQuery.isNotBlank() && !isLoading
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Найти")
+            }
+        }
+    }
+}
+
+
+@Composable
+fun SearchResultsContent(
+    modifier: Modifier = Modifier,
+    state: MainState,
+    onMovieClick: (Movie) -> Unit,
+    onMovieLongClick: (Movie) -> Unit
+) {
+    Box(
+        modifier = modifier
+    ) {
+        when {
+            state.isLoading -> {
+                LoadingIndicator()
+            }
+
+            state.errorMessage != null -> {
+                ErrorMessage(
+                    message = state.errorMessage!!
+                )
+            }
+
+            state.searchResults.isEmpty() && !state.isLoading -> {
+                EmptySearchContent()
+            }
+
+            else -> {
+                SearchResultsList(
+                    results = state.searchResults,
+                    onMovieClick = onMovieClick,
+                    onMovieLongClick = onMovieLongClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun LoadingIndicator() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(modifier = Modifier.size(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Поиск фильмов...",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun ErrorMessage(message: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Warning,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = message,
+            fontSize = 18.sp,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Попробуйте другой запрос",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun EmptySearchContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.Search,
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Введите название фильма",
+            fontSize = 20.sp,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Например: Avatar, Inception, Titanic",
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun SearchResultsList(
+    results: List<Movie>,
+    onMovieClick: (Movie) -> Unit,
+    onMovieLongClick: (Movie) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(
+            items = results,
+            key = { movie -> movie.imdbID }
+        ) { movie ->
+            SearchResultItem(
+                movie = movie,
+                onClick = { onMovieClick(movie) },
+                onLongClick = { onMovieLongClick(movie) }
+            )
+        }
+    }
+}
+
+@Composable
 fun SearchResultItem(
     movie: Movie,
-    onLongClick: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -329,4 +361,35 @@ fun SearchResultItem(
             )
         }
     }
+}
+
+@Composable
+fun MovieContextMenu(
+    movie: Movie,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(movie.title) },
+        text = {
+            Column {
+                Text("Год: ${movie.year}")
+                Text("Жанр: ${movie.genre ?: "Не указан"}")
+                Text("IMDb ID: ${movie.imdbID}")
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Выберите действие:")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onEdit) {
+                Text("Редактировать")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Отмена")
+            }
+        }
+    )
 }
