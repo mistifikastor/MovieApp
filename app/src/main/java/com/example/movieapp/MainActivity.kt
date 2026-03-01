@@ -2,18 +2,22 @@
 package com.example.movieapp
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.movieapp.model.Movie
 import kotlinx.coroutines.launch
 import com.example.movieapp.model.MovieRepository
 import com.example.movieapp.ui.main.MainEffect
 import com.example.movieapp.ui.main.MainIntent
+import com.example.movieapp.ui.main.MainState
 import com.example.movieapp.ui.main.MainViewModel
 import com.example.movieapp.ui.main.Screen
 import com.example.movieapp.view.AddScreen
@@ -27,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                // Создаём ViewModel
+                // Создаём репозиторий и ViewModel
                 val repository = MovieRepository(applicationContext)
                 val viewModel: MainViewModel = viewModel(
                     factory = MainViewModelFactory(repository)
@@ -36,14 +40,19 @@ class MainActivity : ComponentActivity() {
                 // Собираем состояние
                 val state by viewModel.state.collectAsState()
 
+                // Локальное состояние для выбранного фильма (дублируем из state для совместимости)
+                var selectedMovieForEdit by rememberSaveable { mutableStateOf<Movie?>(null) }
+
                 // Обрабатываем эффекты (одноразовые события)
                 LaunchedEffect(Unit) {
                     viewModel.effect.collect { effect ->
-                        handleEffect(effect)
+                        handleEffect(effect) { newSelectedMovie ->
+                            selectedMovieForEdit = newSelectedMovie
+                        }
                     }
                 }
 
-                // Отображаем текущий экран
+                // Отображаем текущий экран с учётом навигации
                 when (state.currentScreen) {
                     Screen.MAIN -> MainScreen(
                         state = state,
@@ -51,7 +60,7 @@ class MainActivity : ComponentActivity() {
                     )
 
                     Screen.ADD -> AddScreen(
-                        state = state,
+                        state = state.copy(selectedMovieForEdit = selectedMovieForEdit),
                         onIntent = viewModel::handleIntent
                     )
 
@@ -64,24 +73,35 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun handleEffect(effect: MainEffect) {
+    private fun handleEffect(
+        effect: MainEffect,
+        onSelectedMovieUpdate: (Movie?) -> Unit
+    ) {
         when (effect) {
             is MainEffect.NavigateToMain -> {
-                // Обновляем состояние через Intent
-                // Но так как у нас нет прямого доступа к ViewModel здесь,
-                // лучше использовать Effect для навигации и обновлять состояние через Intent
+                // Возврат на главный экран
+                // Состояние уже обновлено через ViewModel, ничего делать не нужно
             }
+
             is MainEffect.NavigateToAdd -> {
-                // Навигация + обновление selectedMovieForEdit
+                // Навигация на экран добавления с выбранным фильмом
+                onSelectedMovieUpdate(effect.movie)
+                // Состояние currentScreen уже обновлено через ViewModel
             }
+
             is MainEffect.NavigateToSearch -> {
-                // Навигация
+                // Навигация на экран поиска
+                // Состояние уже обновлено через ViewModel
             }
+
             is MainEffect.NavigateBack -> {
-                // Назад
+                // Навигация назад
+                // Состояние уже обновлено через ViewModel
             }
+
             is MainEffect.ShowError -> {
-                // Показать тост или снекбар
+                // Показать тост с ошибкой
+                Toast.makeText(this, effect.message, Toast.LENGTH_SHORT).show()
             }
         }
     }

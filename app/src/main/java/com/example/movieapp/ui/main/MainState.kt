@@ -11,7 +11,7 @@ data class MainState(
     val selectedCount: Int = 0,
     val isDeleteDialogVisible: Boolean = false,
     val currentScreen: Screen = Screen.MAIN,
-    val selectedMovieForEdit: Movie? = null
+    val selectedMovieForEdit: Movie? = null  // ← ЭТО ПОЛЕ ДОЛЖНО БЫТЬ
 )
 
 enum class Screen {

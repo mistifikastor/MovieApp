@@ -4,6 +4,7 @@ package com.example.movieapp.view
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -253,15 +254,17 @@ fun SearchResultsList(
     onMovieClick: (Movie) -> Unit,
     onMovieLongClick: (Movie) -> Unit
 ) {
+    // В SearchScreen.kt, внутри SearchResultsList:
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(
+        itemsIndexed(
             items = results,
-            key = { movie -> movie.imdbID }
-        ) { movie ->
+            key = { index, movie -> "${movie.imdbID}_$index" }  // ← уникальный ключ
+        ) { index, movie ->
             SearchResultItem(
                 movie = movie,
                 onClick = { onMovieClick(movie) },

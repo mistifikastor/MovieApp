@@ -95,6 +95,14 @@ class MainViewModel(
     private fun addMovie(movie: Movie) {
         viewModelScope.launch {
             repository.insertMovie(movie)
+            // Обновляем состояние - переходим на главный экран
+            _state.update {
+                it.copy(
+                    currentScreen = Screen.MAIN,
+                    selectedMovieForEdit = null  // сбрасываем выбранный фильм
+                )
+            }
+            // Отправляем эффект (на всякий случай)
             _effect.emit(MainEffect.NavigateToMain)
         }
     }
@@ -131,25 +139,46 @@ class MainViewModel(
 
     private fun navigateToAdd() {
         viewModelScope.launch {
+            _state.update { it.copy(currentScreen = Screen.ADD) }
             _effect.emit(MainEffect.NavigateToAdd(null))
         }
     }
 
     private fun navigateToEdit(movie: Movie) {
         viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    currentScreen = Screen.ADD,
+                    selectedMovieForEdit = movie
+                )
+            }
             _effect.emit(MainEffect.NavigateToAdd(movie))
         }
     }
 
     private fun navigateToSearch() {
         viewModelScope.launch {
+            _state.update { it.copy(currentScreen = Screen.SEARCH) }
             _effect.emit(MainEffect.NavigateToSearch)
         }
     }
 
     private fun navigateBack() {
         viewModelScope.launch {
+            when (_state.value.currentScreen) {
+                Screen.ADD -> _state.update {
+                    it.copy(
+                        currentScreen = Screen.MAIN,
+                        selectedMovieForEdit = null
+                    )
+                }
+                Screen.SEARCH -> _state.update {
+                    it.copy(
+                        currentScreen = Screen.ADD
+                    )
+                }
+                else -> _state.update { it.copy(currentScreen = Screen.MAIN) }
+            }
             _effect.emit(MainEffect.NavigateBack)
         }
-    }
-}
+    } }
