@@ -6,136 +6,93 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
-import com.example.movieapp.controller.MainController
-import com.example.movieapp.model.Movie
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.example.movieapp.model.MovieRepository
+import com.example.movieapp.ui.main.MainEffect
+import com.example.movieapp.ui.main.MainIntent
+import com.example.movieapp.ui.main.MainViewModel
 import com.example.movieapp.view.AddScreen
 import com.example.movieapp.view.MainScreen
-import com.example.movieapp.view.MovieView
 import com.example.movieapp.view.SearchScreen
 
-class MainActivity : ComponentActivity(), MovieView {
-
-    // Состояние для UI
-    private var movies by mutableStateOf(emptyList<Movie>())
-    private var searchResults by mutableStateOf(emptyList<Movie>())
-    private var isLoading by mutableStateOf(false)
-    private var errorMessage by mutableStateOf<String?>(null)
-    private var selectedCount by mutableStateOf(0)
-
-    // Навигация
-    private var currentScreen by mutableStateOf(Screen.MAIN)
-    private var selectedMovieForEdit by mutableStateOf<Movie?>(null)
-
-    // Контроллер
-    private lateinit var controller: MainController
+class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Инициализируем контроллер
-        val repository = MovieRepository(applicationContext)
-        controller = MainController(repository, this)
-
         setContent {
             MaterialTheme {
+                // Создаём ViewModel
+                val repository = MovieRepository(applicationContext)
+                val viewModel: MainViewModel = viewModel(
+                    factory = MainViewModelFactory(repository)
+                )
+
+                // Собираем состояние
+                val state by viewModel.state.collectAsState()
+
+                // Обрабатываем эффекты (одноразовые события)
+                LaunchedEffect(Unit) {
+                    viewModel.effect.collect { effect ->
+                        handleEffect(effect)
+                    }
+                }
+
                 // Отображаем текущий экран
-                when (currentScreen) {
+                when (state.currentScreen) {
                     Screen.MAIN -> MainScreen(
-                        movies = movies,
-                        selectedCount = selectedCount,
-                        onAddClick = { controller.onAddClicked() },
-                        onMovieToggle = { controller.toggleMovieSelection(it) },
-                        onDeleteSelected = { controller.deleteSelectedMovies() }
+                        state = state,
+                        onIntent = viewModel::handleIntent
                     )
 
                     Screen.ADD -> AddScreen(
-                        onBack = { controller.onBackClicked() },
-                        onOpenSearch = { controller.onSearchClicked() },
-                        onAddMovie = { movie ->
-                            // При добавлении фильма вызываем метод контроллера
-                            controller.addMovie(movie)
-                            // После добавления возвращаемся на главный экран
-                            currentScreen = Screen.MAIN
-                            selectedMovieForEdit = null
-                        },
-                        selectedMovie = selectedMovieForEdit
+                        state = state,
+                        onIntent = viewModel::handleIntent
                     )
 
                     Screen.SEARCH -> SearchScreen(
-                        searchResults = searchResults,
-                        isLoading = isLoading,
-                        errorMessage = errorMessage,
-                        onSearch = { query -> controller.searchMovies(query) },
-                        onBack = { controller.onBackClicked() },
-                        onMovieSelected = { movie ->
-                            // При выборе фильма из поиска сохраняем его для редактирования
-                            selectedMovieForEdit = movie
-                            currentScreen = Screen.ADD
-                        },
-                        onClearResults = { controller.clearSearchResults() }
+                        state = state,
+                        onIntent = viewModel::handleIntent
                     )
                 }
             }
         }
-
-        // Загружаем данные
-        controller.loadMoviesFromDb()
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        controller.onDestroy()
-    }
-
-    // Реализация MovieView
-    override fun showMovies(movies: List<Movie>) {
-        this.movies = movies
-    }
-
-    override fun showSearchResults(results: List<Movie>) {
-        this.searchResults = results
-    }
-
-    override fun showLoading(isLoading: Boolean) {
-        this.isLoading = isLoading
-    }
-
-    override fun showError(message: String?) {
-        this.errorMessage = message
-    }
-
-    override fun updateSelectedCount(count: Int) {
-        this.selectedCount = count
-    }
-
-    override fun navigateToAdd(movie: Movie?) {
-        selectedMovieForEdit = movie
-        currentScreen = Screen.ADD
-    }
-
-    override fun navigateToSearch() {
-        currentScreen = Screen.SEARCH
-    }
-
-    override fun navigateBack() {
-        when (currentScreen) {
-            Screen.SEARCH -> {
-                currentScreen = Screen.ADD
-                // Не сбрасываем selectedMovieForEdit, чтобы вернуться к редактированию
+    private fun handleEffect(effect: MainEffect) {
+        when (effect) {
+            is MainEffect.NavigateToMain -> {
+                // Обновляем состояние через Intent
+                // Но так как у нас нет прямого доступа к ViewModel здесь,
+                // лучше использовать Effect для навигации и обновлять состояние через Intent
             }
-            Screen.ADD -> {
-                currentScreen = Screen.MAIN
-                selectedMovieForEdit = null
+            is MainEffect.NavigateToAdd -> {
+                // Навигация + обновление selectedMovieForEdit
             }
-            else -> {
-                currentScreen = Screen.MAIN
-                selectedMovieForEdit = null
+            is MainEffect.NavigateToSearch -> {
+                // Навигация
+            }
+            is MainEffect.NavigateBack -> {
+                // Назад
+            }
+            is MainEffect.ShowError -> {
+                // Показать тост или снекбар
             }
         }
     }
 }
 
-enum class Screen {
-    MAIN, ADD, SEARCH
+// Factory для ViewModel
+class MainViewModelFactory(
+    private val repository: MovieRepository
+) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return MainViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
 }
