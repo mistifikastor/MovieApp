@@ -267,7 +267,6 @@ fun MoviePoster(posterUrl: String, title: String) {
 fun MovieInfo(movie: Movie) {
     Column(
         modifier = Modifier
-            .weight(1f)
             .padding(end = 8.dp)
     ) {
         Text(

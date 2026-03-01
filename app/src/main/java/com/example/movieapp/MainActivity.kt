@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
@@ -13,6 +15,7 @@ import com.example.movieapp.model.MovieRepository
 import com.example.movieapp.ui.main.MainEffect
 import com.example.movieapp.ui.main.MainIntent
 import com.example.movieapp.ui.main.MainViewModel
+import com.example.movieapp.ui.main.Screen
 import com.example.movieapp.view.AddScreen
 import com.example.movieapp.view.MainScreen
 import com.example.movieapp.view.SearchScreen

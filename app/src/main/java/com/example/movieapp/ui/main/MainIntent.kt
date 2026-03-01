@@ -19,6 +19,7 @@ sealed class MainIntent {
     // Выбор/удаление
     data class ToggleMovieSelection(val movie: Movie) : MainIntent()
     object DeleteSelectedMovies : MainIntent()
+    object ShowDeleteDialog : MainIntent()      // ← ДОБАВИТЬ ЭТО
     object ConfirmDelete : MainIntent()
     object DismissDeleteDialog : MainIntent()
 

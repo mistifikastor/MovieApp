@@ -34,8 +34,9 @@ class MainViewModel(
             is MainIntent.NavigateToAdd -> navigateToAdd()
             is MainIntent.NavigateToEdit -> navigateToEdit(intent.movie)
             is MainIntent.ToggleMovieSelection -> toggleMovieSelection(intent.movie)
-            is MainIntent.DeleteSelectedMovies -> showDeleteDialog()
-            is MainIntent.ConfirmDelete -> deleteSelectedMovies()
+            is MainIntent.DeleteSelectedMovies -> deleteSelectedMovies()
+            is MainIntent.ShowDeleteDialog -> showDeleteDialog()        // ← ДОБАВИТЬ ЭТУ СТРОКУ
+            is MainIntent.ConfirmDelete -> confirmDelete()
             is MainIntent.DismissDeleteDialog -> dismissDeleteDialog()
             is MainIntent.NavigateBack -> navigateBack()
             is MainIntent.NavigateToSearch -> navigateToSearch()
@@ -105,8 +106,15 @@ class MainViewModel(
         }
     }
 
-    private fun showDeleteDialog() {
+    private fun showDeleteDialog() {                                    // ← ДОБАВИТЬ ЭТОТ МЕТОД
         _state.update { it.copy(isDeleteDialogVisible = true) }
+    }
+
+    private fun confirmDelete() {
+        viewModelScope.launch {
+            repository.deleteSelectedMovies()
+            _state.update { it.copy(isDeleteDialogVisible = false) }
+        }
     }
 
     private fun dismissDeleteDialog() {
@@ -114,9 +122,10 @@ class MainViewModel(
     }
 
     private fun deleteSelectedMovies() {
+        // Этот метод может быть не нужен, если используешь showDeleteDialog + confirmDelete
+        // Но оставим для обратной совместимости
         viewModelScope.launch {
             repository.deleteSelectedMovies()
-            _state.update { it.copy(isDeleteDialogVisible = false) }
         }
     }
 
