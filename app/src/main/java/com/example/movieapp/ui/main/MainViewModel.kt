@@ -120,8 +120,18 @@ class MainViewModel(
 
     private fun confirmDelete() {
         viewModelScope.launch {
-            repository.deleteSelectedMovies()
-            _state.update { it.copy(isDeleteDialogVisible = false) }
+            try {
+                repository.deleteSelectedMovies()  // удаляем выбранные фильмы
+                _state.update {
+                    it.copy(
+                        isDeleteDialogVisible = false,
+                        // selectedCount обновится через подписку allMovies
+                    )
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(isDeleteDialogVisible = false) }
+                _effect.emit(MainEffect.ShowError("Ошибка при удалении: ${e.message}"))
+            }
         }
     }
 
