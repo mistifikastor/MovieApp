@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/movieapp/MainActivity.kt
 package com.example.movieapp
 
 import android.os.Bundle
@@ -8,21 +7,26 @@ import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.movieapp.model.Movie
-import kotlinx.coroutines.launch
-import com.example.movieapp.model.MovieRepository
-import com.example.movieapp.ui.main.MainEffect
-import com.example.movieapp.ui.main.MainIntent
-import com.example.movieapp.ui.main.MainState
-import com.example.movieapp.ui.main.MainViewModel
-import com.example.movieapp.ui.main.Screen
-import com.example.movieapp.view.AddScreen
-import com.example.movieapp.view.MainScreen
-import com.example.movieapp.view.SearchScreen
+import com.example.movieapp.data.local.database.MovieDatabase
+import com.example.movieapp.data.local.dao.MovieDao
+import com.example.movieapp.data.remote.api.MovieApi
+import com.example.movieapp.data.remote.api.RetrofitClient
+import com.example.movieapp.data.repository.MovieRepositoryImpl
+import com.example.movieapp.domain.model.Movie
+import com.example.movieapp.domain.repository.MovieRepository
+import com.example.movieapp.domain.usecase.movie.*
+import com.example.movieapp.domain.usecase.search.SearchMoviesUseCase
+import com.example.movieapp.presentation.model.MainEffect
+import com.example.movieapp.presentation.model.MainIntent
+import com.example.movieapp.presentation.model.MainState
+import com.example.movieapp.presentation.model.Screen
+import com.example.movieapp.presentation.theme.MovieAppTheme
+import com.example.movieapp.presentation.view.AddScreen
+import com.example.movieapp.presentation.view.MainScreen
+import com.example.movieapp.presentation.view.SearchScreen
+import com.example.movieapp.presentation.viewmodel.MainViewModel
+import com.example.movieapp.presentation.viewmodel.MainViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -30,20 +34,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
-                // Создаём репозиторий и ViewModel
-                val repository = MovieRepository(applicationContext)
+            MovieAppTheme {
+                val repository = provideMovieRepository()
                 val viewModel: MainViewModel = viewModel(
-                    factory = MainViewModelFactory(repository)
+                    factory = provideMainViewModelFactory(repository)
                 )
 
-                // Собираем состояние
                 val state by viewModel.state.collectAsState()
-
-                // Локальное состояние для выбранного фильма (дублируем из state для совместимости)
                 var selectedMovieForEdit by rememberSaveable { mutableStateOf<Movie?>(null) }
 
-                // Обрабатываем эффекты (одноразовые события)
                 LaunchedEffect(Unit) {
                     viewModel.effect.collect { effect ->
                         handleEffect(effect) { newSelectedMovie ->
@@ -52,18 +51,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                // Отображаем текущий экран с учётом навигации
                 when (state.currentScreen) {
                     Screen.MAIN -> MainScreen(
                         state = state,
                         onIntent = viewModel::handleIntent
                     )
-
                     Screen.ADD -> AddScreen(
                         state = state.copy(selectedMovieForEdit = selectedMovieForEdit),
                         onIntent = viewModel::handleIntent
                     )
-
                     Screen.SEARCH -> SearchScreen(
                         state = state,
                         onIntent = viewModel::handleIntent
@@ -73,49 +69,41 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun provideMovieRepository(): MovieRepository {
+        val database = MovieDatabase.getDatabase(this)
+        val movieDao = database.movieDao()
+        val movieApi = RetrofitClient.instance
+        return MovieRepositoryImpl(movieDao, movieApi, RetrofitClient.API_KEY)
+    }
+
+    private fun provideMainViewModelFactory(repository: MovieRepository): MainViewModelFactory {
+        return MainViewModelFactory(
+            observeMoviesUseCase = ObserveMoviesUseCase(repository),
+            insertMovieUseCase = InsertMovieUseCase(repository),
+            updateMovieUseCase = UpdateMovieUseCase(repository),
+            deleteMovieUseCase = DeleteMovieUseCase(repository),
+            deleteSelectedMoviesUseCase = DeleteSelectedMoviesUseCase(repository),
+            toggleMovieSelectionUseCase = ToggleMovieSelectionUseCase(repository),
+            clearAllSelectionsUseCase = ClearAllSelectionsUseCase(repository),
+            getSelectedCountUseCase = GetSelectedCountUseCase(repository),
+            searchMoviesUseCase = SearchMoviesUseCase(repository)
+        )
+    }
+
     private fun handleEffect(
         effect: MainEffect,
         onSelectedMovieUpdate: (Movie?) -> Unit
     ) {
         when (effect) {
-            is MainEffect.NavigateToMain -> {
-                // Возврат на главный экран
-                // Состояние уже обновлено через ViewModel, ничего делать не нужно
-            }
-
             is MainEffect.NavigateToAdd -> {
-                // Навигация на экран добавления с выбранным фильмом
                 onSelectedMovieUpdate(effect.movie)
-                // Состояние currentScreen уже обновлено через ViewModel
             }
-
-            is MainEffect.NavigateToSearch -> {
-                // Навигация на экран поиска
-                // Состояние уже обновлено через ViewModel
-            }
-
-            is MainEffect.NavigateBack -> {
-                // Навигация назад
-                // Состояние уже обновлено через ViewModel
-            }
-
             is MainEffect.ShowError -> {
-                // Показать тост с ошибкой
                 Toast.makeText(this, effect.message, Toast.LENGTH_SHORT).show()
             }
+            else -> {
+                // Другие эффекты не требуют обработки
+            }
         }
-    }
-}
-
-// Factory для ViewModel
-class MainViewModelFactory(
-    private val repository: MovieRepository
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(MainViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return MainViewModel(repository) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
