@@ -1,6 +1,10 @@
-// data/remote/model/MovieSearchResponse.kt (бывший MovieResponse.kt)
 package com.example.movieapp.data.remote.model
 
+import com.example.movieapp.domain.model.Movie
+
+/**
+ * Ответ от API при поиске фильмов
+ */
 data class MovieSearchResponse(
     val Search: List<MovieSearchResult>?,
     val totalResults: String?,
@@ -8,6 +12,9 @@ data class MovieSearchResponse(
     val Error: String?
 )
 
+/**
+ * Результат поиска фильма
+ */
 data class MovieSearchResult(
     val Title: String,
     val Year: String,
@@ -15,12 +22,16 @@ data class MovieSearchResult(
     val Type: String,
     val Poster: String
 ) {
-    fun toDomain() = com.example.movieapp.domain.model.Movie(
+    /**
+     * Преобразование в доменную модель
+     * (без жанра, так как API не возвращает жанр в поиске)
+     */
+    fun toDomain(): Movie = Movie(
         title = Title,
         year = Year,
         posterUrl = Poster,
         imdbID = imdbID,
-        genre = null, // Жанр будет получен отдельно
+        genre = null,
         isSelected = false
     )
 }

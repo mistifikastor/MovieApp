@@ -1,9 +1,13 @@
-// data/local/model/MovieEntity.kt (бывший Movie.kt)
 package com.example.movieapp.data.local.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.movieapp.domain.model.Movie
 
+/**
+ * Entity для Room базы данных
+ * Представляет таблицу movies в БД
+ */
 @Entity(tableName = "movies")
 data class MovieEntity(
     @PrimaryKey(autoGenerate = true)
@@ -15,8 +19,10 @@ data class MovieEntity(
     var genre: String? = null,
     var isSelected: Boolean = false
 ) {
-    // Маппинг в доменную модель
-    fun toDomain() = com.example.movieapp.domain.model.Movie(
+    /**
+     * Преобразование Entity в доменную модель
+     */
+    fun toDomain(): Movie = Movie(
         id = id,
         title = title,
         year = year,
@@ -27,7 +33,10 @@ data class MovieEntity(
     )
 
     companion object {
-        fun fromDomain(movie: com.example.movieapp.domain.model.Movie) = MovieEntity(
+        /**
+         * Преобразование доменной модели в Entity
+         */
+        fun fromDomain(movie: Movie): MovieEntity = MovieEntity(
             id = movie.id,
             title = movie.title,
             year = movie.year,

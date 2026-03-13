@@ -1,6 +1,10 @@
-// data/remote/model/MovieDetailsResponse.kt
 package com.example.movieapp.data.remote.model
 
+import com.example.movieapp.domain.model.Movie
+
+/**
+ * Детальный ответ от API о фильме
+ */
 data class MovieDetailsResponse(
     val Title: String,
     val Year: String,
@@ -20,7 +24,10 @@ data class MovieDetailsResponse(
     val Response: String,
     val Error: String?
 ) {
-    fun toDomain() = com.example.movieapp.domain.model.Movie(
+    /**
+     * Преобразование в доменную модель
+     */
+    fun toDomain(): Movie = Movie(
         title = Title,
         year = Year,
         posterUrl = Poster,

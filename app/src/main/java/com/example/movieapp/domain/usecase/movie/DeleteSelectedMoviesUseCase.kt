@@ -1,8 +1,10 @@
-// domain/usecase/movie/DeleteSelectedMoviesUseCase.kt
 package com.example.movieapp.domain.usecase.movie
 
 import com.example.movieapp.domain.repository.MovieRepository
 
+/**
+ * UseCase для удаления всех выбранных фильмов
+ */
 class DeleteSelectedMoviesUseCase(
     private val repository: MovieRepository
 ) {
