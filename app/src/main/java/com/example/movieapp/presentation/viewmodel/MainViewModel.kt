@@ -1,4 +1,3 @@
-// presentation/viewmodel/MainViewModel.kt
 package com.example.movieapp.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -32,7 +31,7 @@ class MainViewModel(
     val effect: SharedFlow<MainEffect> = _effect.asSharedFlow()
 
     init {
-        observeMovies()
+        handleIntent(MainIntent.LoadMovies)
     }
 
     fun handleIntent(intent: MainIntent) {

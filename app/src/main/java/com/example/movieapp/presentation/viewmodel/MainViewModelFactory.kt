@@ -1,13 +1,11 @@
-// presentation/viewmodel/MainViewModelFactory.kt
 package com.example.movieapp.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.movieapp.domain.usecase.movie.*
 import com.example.movieapp.domain.usecase.search.SearchMoviesUseCase
-import javax.inject.Inject
 
-class MainViewModelFactory @Inject constructor(
+class MainViewModelFactory(
     private val observeMoviesUseCase: ObserveMoviesUseCase,
     private val insertMovieUseCase: InsertMovieUseCase,
     private val updateMovieUseCase: UpdateMovieUseCase,

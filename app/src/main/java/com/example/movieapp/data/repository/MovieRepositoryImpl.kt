@@ -1,19 +1,20 @@
-// data/repository/MovieRepositoryImpl.kt
 package com.example.movieapp.data.repository
 
 import com.example.movieapp.data.local.dao.MovieDao
 import com.example.movieapp.data.local.model.MovieEntity
 import com.example.movieapp.data.remote.api.MovieApi
-import com.example.movieapp.data.remote.model.MovieSearchResult
 import com.example.movieapp.domain.model.Movie
 import com.example.movieapp.domain.repository.MovieRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import javax.inject.Inject
 
-class MovieRepositoryImpl @Inject constructor(
+/**
+ * Реализация репозитория фильмов
+ * Работает с локальной БД и удаленным API
+ */
+class MovieRepositoryImpl(
     private val movieDao: MovieDao,
     private val movieApi: MovieApi,
     private val apiKey: String
@@ -23,9 +24,6 @@ class MovieRepositoryImpl @Inject constructor(
         movieDao.getAllMovies().map { entities ->
             entities.map { it.toDomain() }
         }
-
-    override suspend fun getSelectedCount(): Int =
-        movieDao.getSelectedCount()
 
     override suspend fun insertMovie(movie: Movie) {
         movieDao.insertMovie(MovieEntity.fromDomain(movie))
@@ -47,15 +45,22 @@ class MovieRepositoryImpl @Inject constructor(
         movieDao.clearAllSelections()
     }
 
+    override suspend fun getSelectedCount(): Int {
+        return movieDao.getSelectedCount()
+    }
+
     override suspend fun searchMovies(query: String): List<Movie> =
         withContext(Dispatchers.IO) {
             try {
                 val response = movieApi.searchMovies(apiKey, query)
                 if (response.Response == "True" && response.Search != null) {
+                    // Временное решение: генерируем жанры для демонстрации
+                    // В реальном приложении нужно делать дополнительный запрос
                     response.Search.mapIndexed { index, result ->
-                        // Временная генерация жанра
-                        val genres = listOf("Драма", "Комедия", "Боевик", "Триллер",
-                            "Фантастика", "Ужасы", "Мелодрама", "Детектив")
+                        val genres = listOf(
+                            "Драма", "Комедия", "Боевик", "Триллер",
+                            "Фантастика", "Ужасы", "Мелодрама", "Детектив"
+                        )
                         result.toDomain().copy(
                             genre = genres[index % genres.size]
                         )
