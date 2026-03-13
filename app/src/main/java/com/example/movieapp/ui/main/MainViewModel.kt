@@ -24,7 +24,6 @@ class MainViewModel(
         handleIntent(MainIntent.LoadMovies)
     }
 
-    // Единая точка входа для всех интентов
     fun handleIntent(intent: MainIntent) {
         when (intent) {
             is MainIntent.LoadMovies -> loadMoviesFromDb()
@@ -35,7 +34,7 @@ class MainViewModel(
             is MainIntent.NavigateToEdit -> navigateToEdit(intent.movie)
             is MainIntent.ToggleMovieSelection -> toggleMovieSelection(intent.movie)
             is MainIntent.DeleteSelectedMovies -> deleteSelectedMovies()
-            is MainIntent.ShowDeleteDialog -> showDeleteDialog()        // ← ДОБАВИТЬ ЭТУ СТРОКУ
+            is MainIntent.ShowDeleteDialog -> showDeleteDialog()
             is MainIntent.ConfirmDelete -> confirmDelete()
             is MainIntent.DismissDeleteDialog -> dismissDeleteDialog()
             is MainIntent.NavigateBack -> navigateBack()
